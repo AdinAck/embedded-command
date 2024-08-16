@@ -1,0 +1,13 @@
+[package]
+name = "dispatch-bundle"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+packit = []
+
+[dependencies]
+macros = { path = "../macros" }
+
+[dev-dependencies]
+cookie-cutter = { path = "../cookie-cutter" }

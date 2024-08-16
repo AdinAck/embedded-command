@@ -1,0 +1,8 @@
+[package]
+name = "packit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cookie-cutter = { path = "../cookie-cutter" }
+crc = "3.0.1"
