@@ -10,6 +10,7 @@ CRATES=("macros" "cookie-cutter" "dispatch-bundle")
 # build
 
 for TARGET in "${TARGETS[@]}"; do
+    rustup target add "$TARGET"
     for CRATE in "${CRATES[@]}"; do
         cargo build -p "$CRATE" --target "$TARGET"
     done
