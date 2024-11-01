@@ -84,13 +84,13 @@ pub unsafe trait SerializeBuf<E: Encoding = Vanilla>: SerializeIter<E> {
     fn serialize_buf(&self, dest: &mut Self::Serialized) {
         // SAFETY: dependent on safety of trait implementation.
         // `Serialized` must be of sufficient length.
-        unsafe { SerializeIter::serialize_iter(self, &mut dest.get_iter_mut()).unwrap_unchecked() };
+        unsafe { SerializeIter::serialize_iter(self, dest.get_iter_mut()).unwrap_unchecked() };
     }
 
     /// Deserialize the implementer type from a
     /// serialization medium.
     fn deserialize_buf(src: &Self::Serialized) -> Result<Self, error::Invalid> {
-        SerializeIter::deserialize_iter(&mut src.get_iter()).or_else(|err| match err {
+        SerializeIter::deserialize_iter(src.get_iter()).or_else(|err| match err {
             error::Error::Invalid => Err(error::Invalid),
             // SAFETY: dependent on safety of trait implementation.
             // `Serialized` must be of sufficient length.

@@ -11,6 +11,12 @@ pub struct CommandBuffer<const N: usize> {
     size: usize,
 }
 
+impl<const N: usize> Default for CommandBuffer<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> CommandBuffer<N> {
     pub const fn new() -> Self {
         Self {
@@ -88,7 +94,7 @@ impl<const N: usize> CommandBuffer<N> {
 
     /// Create an iterator for the command buffer.
     #[inline]
-    pub fn iter<'a>(&'a mut self) -> CommandBufferIter<'a, N> {
+    pub fn iter(&mut self) -> CommandBufferIter<'_, N> {
         CommandBufferIter::new(self)
     }
 
