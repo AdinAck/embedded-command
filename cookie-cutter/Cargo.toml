@@ -6,3 +6,18 @@ edition = "2021"
 [dependencies]
 macros = { path = "../macros", version = "0.1.0" }
 fill-array = "0.2.1"
+
+# for binary
+panic-halt = { version = "1.0.0", optional = true }
+cortex-m = { version = "0.7.7", optional = true }
+cortex-m-rt = { version = "0.7.3", optional = true }
+
+[features]
+binary = ["dep:panic-halt", "dep:cortex-m", "cortex-m-rt"]
+cortex-m-rt = ["dep:cortex-m-rt"]
+
+[[bin]]
+name = "test"
+bench = false
+test = false
+required-features = ["binary"]
