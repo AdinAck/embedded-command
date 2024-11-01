@@ -7,6 +7,9 @@ rustup toolchain install nightly --component miri
 TARGETS=("thumbv6m-none-eabi" "thumbv7em-none-eabi" "thumbv7em-none-eabihf")
 CRATES=("macros" "cookie-cutter" "dispatch-bundle")
 
+# clippy
+cargo clippy
+
 # build
 
 for TARGET in "${TARGETS[@]}"; do
@@ -25,3 +28,10 @@ done
 # miri
 
 cargo +nightly miri test -p embedded-command command_buffer
+
+# crate-specific
+
+# cookie-cutter
+
+# asm analysis
+cargo build -p cookie-cutter --bin asm --target thumbv7em-none-eabihf --features binary --release

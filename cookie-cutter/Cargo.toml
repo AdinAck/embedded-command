@@ -17,7 +17,7 @@ binary = ["dep:panic-halt", "dep:cortex-m", "cortex-m-rt"]
 cortex-m-rt = ["dep:cortex-m-rt"]
 
 [[bin]]
-name = "test"
+name = "asm"
 bench = false
 test = false
 required-features = ["binary"]
