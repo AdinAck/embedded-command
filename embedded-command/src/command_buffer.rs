@@ -2,6 +2,7 @@ use core::mem::MaybeUninit;
 
 pub mod error {
     #[derive(Debug)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Overflow;
 }
 

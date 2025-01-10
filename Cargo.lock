@@ -183,6 +183,7 @@ name = "embedded-command"
 version = "0.1.0"
 dependencies = [
  "cookie-cutter",
+ "defmt",
  "embassy-futures",
  "embassy-sync",
  "embedded-hal-async",

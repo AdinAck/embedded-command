@@ -3,7 +3,6 @@ name = "embedded-command"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 embassy-futures = "0.1.1"
@@ -12,3 +11,7 @@ embedded-hal-async = "1.0.0"
 embedded-io-async = "0.6.1"
 heapless = "0.8.0"
 cookie-cutter = { path = "../cookie-cutter" }
+defmt = { version = "0.3.10", optional = true }
+
+[features]
+defmt = ["dep:defmt"]
