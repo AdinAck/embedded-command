@@ -12,12 +12,15 @@ use medium::Medium;
 
 pub mod error {
     #[derive(Debug, Clone, Copy)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct EndOfInput;
 
     #[derive(Debug, Clone, Copy)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Invalid;
 
     #[derive(Debug, Clone, Copy)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum Error {
         EndOfInput,
         Invalid,

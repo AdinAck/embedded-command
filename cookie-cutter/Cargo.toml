@@ -11,10 +11,12 @@ fill-array = "0.2.1"
 panic-halt = { version = "1.0.0", optional = true }
 cortex-m = { version = "0.7.7", optional = true }
 cortex-m-rt = { version = "0.7.3", optional = true }
+defmt = { version = "0.3.10", optional = true }
 
 [features]
 binary = ["dep:panic-halt", "dep:cortex-m", "cortex-m-rt"]
 cortex-m-rt = ["dep:cortex-m-rt"]
+defmt = ["dep:defmt"]
 
 [[bin]]
 name = "asm"
