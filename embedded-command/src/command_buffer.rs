@@ -6,7 +6,6 @@ pub mod error {
     pub struct Overflow;
 }
 
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CommandBuffer<const N: usize> {
     buf: [MaybeUninit<u8>; N],
     start_cursor: usize,
