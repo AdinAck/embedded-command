@@ -51,7 +51,7 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
     fn serialize_iter<'a>(
         &self,
         dst: impl IntoIterator<Item = &'a mut E::Word>,
-    ) -> Result<(), error::EndOfInput>
+    ) -> Result<usize, error::EndOfInput>
     where
         E::Word: 'a;
 
