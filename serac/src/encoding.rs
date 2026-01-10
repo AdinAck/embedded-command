@@ -9,6 +9,6 @@ pub trait Encoding {
     /// i.e. `u8` for `[u8; ...]` mediums.
     type Word;
 
-    /// The serialized form converted to and from by this encoding scheme.
+    /// The serialized form targeted by this encoding scheme.
     type Serialized<const SIZE: usize>;
 }

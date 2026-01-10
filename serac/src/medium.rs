@@ -1,10 +1,6 @@
-use crate::encoding::{vanilla::Vanilla, Encoding};
+use crate::encoding::{Encoding, vanilla::Vanilla};
 
-// TODO: iters should be associated types defined
-// by implementors
-
-/// Types implement this trait to be used
-/// as serialization mediums.
+/// Types implement this trait to be used as serialization mediums.
 pub trait Medium<E: Encoding = Vanilla> {
     fn default() -> Self;
 }
