@@ -1,11 +1,12 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
+use fill_array::fill;
+
 use super::Encoding;
 
-use crate::{error, Medium, SerializeBuf, SerializeIter};
+use crate::{Medium, SerializeBuf, SerializeIter, error};
 
-use fill_array::fill;
-// export proc macro
+// reexport proc macros
 pub use macros::{SerializeBuf, SerializeIter};
 
 pub struct Vanilla;
@@ -27,7 +28,7 @@ macro_rules! impl_number {
             fn serialize_iter<'a>(
                 &self,
                 dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-            ) -> Result<(), error::EndOfInput>
+            ) -> Result<usize, error::EndOfInput>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
@@ -40,7 +41,7 @@ macro_rules! impl_number {
                     *dst.next().ok_or(error::EndOfInput)? = byte;
                 }
 
-                Ok(())
+                Ok($SIZE)
             }
 
             fn deserialize_iter<'a>(
@@ -89,7 +90,7 @@ impl SerializeIter for bool {
     fn serialize_iter<'a>(
         &self,
         dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<(), error::EndOfInput>
+    ) -> Result<usize, error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
@@ -97,7 +98,7 @@ impl SerializeIter for bool {
 
         *dst.next().ok_or(error::EndOfInput)? = if *self { 1 } else { 0 };
 
-        Ok(())
+        Ok(1)
     }
 
     fn deserialize_iter<'a>(
@@ -126,17 +127,18 @@ impl<T: SerializeIter, const N: usize> SerializeIter for [T; N] {
     fn serialize_iter<'a>(
         &self,
         dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<(), error::EndOfInput>
+    ) -> Result<usize, error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
         let mut dst = dst.into_iter();
+        let mut used = 0;
 
         for item in self {
-            item.serialize_iter(&mut dst)?;
+            used += item.serialize_iter(&mut dst)?;
         }
 
-        Ok(())
+        Ok(used)
     }
 
     fn deserialize_iter<'a>(
@@ -174,19 +176,20 @@ macro_rules! impl_tuple {
             fn serialize_iter<'a>(
                 &self,
                 dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-            ) -> Result<(), error::EndOfInput>
+            ) -> Result<usize, error::EndOfInput>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
                 let mut dst = dst.into_iter();
+                let mut used = 0;
 
                 let ($($NAME,)+) = self;
 
                 $(
-                    $NAME.serialize_iter(&mut dst)?;
+                    used += $NAME.serialize_iter(&mut dst)?;
                 )+
 
-                Ok(())
+                Ok(used)
             }
 
             fn deserialize_iter<'a>(
@@ -228,11 +231,11 @@ impl<T> SerializeIter for PhantomData<T> {
     fn serialize_iter<'a>(
         &self,
         _dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<(), error::EndOfInput>
+    ) -> Result<usize, error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        Ok(())
+        Ok(0)
     }
 
     fn deserialize_iter<'a>(
@@ -249,7 +252,7 @@ impl<T> SerializeIter for PhantomData<T> {
 mod tests {
     mod primitives {
         use crate as serac;
-        use serac::{error, SerializeIter};
+        use serac::{SerializeIter, error};
 
         macro_rules! iter_test {
             ($TYPE:ty) => {
@@ -309,7 +312,7 @@ mod tests {
         use core::marker::PhantomData;
 
         use crate as serac; // for the proc macro
-        use serac::{buf, encoding::vanilla, SerializeBuf, SerializeIter};
+        use serac::{SerializeBuf, SerializeIter, buf, encoding::vanilla};
 
         mod structs {
             use super::*;
@@ -338,7 +341,7 @@ mod tests {
                 assert_eq!(3, buf.len());
 
                 let test_foo = Foo { a: 0xaa, b: -1 };
-                test_foo.serialize_iter(&mut buf).unwrap();
+                assert_eq!(3, test_foo.serialize_iter(&mut buf).unwrap());
 
                 let read_foo = Foo::deserialize_iter(&buf).unwrap();
 
@@ -348,7 +351,7 @@ mod tests {
                 assert_eq!(3, buf.len());
 
                 let test_bar = Bar(0xaa, Nothing, -1);
-                test_bar.serialize_iter(&mut buf).unwrap();
+                assert_eq!(3, test_bar.serialize_iter(&mut buf).unwrap());
 
                 let read_bar = Bar::deserialize_iter(&buf).unwrap();
 
@@ -361,7 +364,7 @@ mod tests {
                     numbers: [0.; 16],
                     flags: (false, 0xaa),
                 };
-                test_baz.serialize_iter(&mut buf).unwrap();
+                assert_eq!(66, test_baz.serialize_iter(&mut buf).unwrap());
 
                 let read_baz = Baz::deserialize_iter(&buf).unwrap();
 
@@ -374,7 +377,7 @@ mod tests {
                 assert_eq!(3, buf.len());
 
                 let test_foo = Foo { a: 0xaa, b: -1 };
-                test_foo.serialize_buf(&mut buf);
+                assert_eq!(3, test_foo.serialize_buf(&mut buf));
 
                 let read_foo = Foo::deserialize_buf(&buf).unwrap();
 
@@ -384,7 +387,7 @@ mod tests {
                 assert_eq!(3, buf.len());
 
                 let test_bar = Bar(0xaa, Nothing, -1);
-                test_bar.serialize_buf(&mut buf);
+                assert_eq!(3, test_bar.serialize_buf(&mut buf));
 
                 let read_bar = Bar::deserialize_buf(&buf).unwrap();
 
@@ -397,7 +400,7 @@ mod tests {
                     numbers: [0.; 16],
                     flags: (false, 0xaa),
                 };
-                test_baz.serialize_buf(&mut buf);
+                assert_eq!(66, test_baz.serialize_buf(&mut buf));
 
                 let read_baz = Baz::deserialize_buf(&buf).unwrap();
 
@@ -425,7 +428,14 @@ mod tests {
                 assert_eq!(4, buf.len());
 
                 let test_foo = Foo::D { bar: 0xaa, t: -1 };
-                test_foo.serialize_iter(&mut buf).unwrap();
+                assert_eq!(4, test_foo.serialize_iter(&mut buf).unwrap());
+
+                let read_foo = Foo::deserialize_iter(&buf).unwrap();
+
+                assert_eq!(test_foo, read_foo);
+
+                let test_foo = Foo::A;
+                assert_eq!(1, test_foo.serialize_iter(&mut buf).unwrap());
 
                 let read_foo = Foo::deserialize_iter(&buf).unwrap();
 
@@ -438,7 +448,14 @@ mod tests {
                 assert_eq!(4, buf.len());
 
                 let test_foo = Foo::D { bar: 0xaa, t: -1 };
-                test_foo.serialize_buf(&mut buf);
+                assert_eq!(4, test_foo.serialize_buf(&mut buf));
+
+                let read_foo = Foo::deserialize_buf(&buf).unwrap();
+
+                assert_eq!(test_foo, read_foo);
+
+                let test_foo = Foo::A;
+                assert_eq!(1, test_foo.serialize_buf(&mut buf));
 
                 let read_foo = Foo::deserialize_buf(&buf).unwrap();
 
@@ -484,7 +501,7 @@ mod tests {
 
             let mut buf = [0; 8];
 
-            test_bar.serialize_iter(&mut buf).unwrap();
+            assert_eq!(6, test_bar.serialize_iter(&mut buf).unwrap());
 
             let read_bar = SerializeIter::deserialize_iter(&buf).unwrap();
 

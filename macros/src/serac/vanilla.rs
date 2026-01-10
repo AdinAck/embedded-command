@@ -52,7 +52,7 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     let types: Vec<_> = s.fields.iter().map(|field| &field.ty).collect();
 
     let (ser_body, deser_body) = match &s.fields {
-        Fields::Unit => (quote! { Ok(()) }, quote! { Ok(Self) }),
+        Fields::Unit => (quote! { Ok(0) }, quote! { Ok(Self) }),
         Fields::Unnamed(fields) => {
             let attr_tags: Vec<_> = fields
                 .unnamed
@@ -64,12 +64,13 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
             (
                 quote! {
                     let mut dst = dst.into_iter();
+                    let mut used = 0;
 
                     #(
-                        #path::SerializeIter::serialize_iter(&self.#attr_tags, &mut dst)?;
+                        used += #path::SerializeIter::serialize_iter(&self.#attr_tags, &mut dst)?;
                     )*
 
-                    Ok(())
+                    Ok(used)
                 },
                 quote! {
                     let mut src = src.into_iter();
@@ -94,12 +95,13 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
             (
                 quote! {
                     let mut dst = dst.into_iter();
+                    let mut used = 0;
 
                     #(
-                        #path::SerializeIter::serialize_iter(&self.#attr_idents, &mut dst)?;
+                        used += #path::SerializeIter::serialize_iter(&self.#attr_idents, &mut dst)?;
                     )*
 
-                    Ok(())
+                    Ok(used)
                 },
                 quote! {
                     let mut src = src.into_iter();
@@ -118,7 +120,7 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<(), #path::error::EndOfInput>
+            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
@@ -189,12 +191,12 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
                     quote! {
                         #ident(#(#idents),*) => {
-                            #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
+                            used += #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
                             #(
-                                #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
+                                used += #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
                             )*
 
-                            Ok(())
+                            Ok(used)
                         }
                     }
                 }
@@ -207,12 +209,12 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
                     quote! {
                         #ident{#(#idents),*} => {
-                            #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
+                            used += #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
                             #(
-                                #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
+                                used += #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
                             )*
 
-                            Ok(())
+                            Ok(used)
                         }
                     }
                 }
@@ -260,11 +262,12 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<(), #path::error::EndOfInput>
+            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
                 let mut dst = dst.into_iter();
+                let mut used = 0;
 
                 #(
                     const #tag_consts: #repr = #tags;
@@ -379,7 +382,7 @@ pub fn impl_serialize_buf(item: TokenStream) -> TokenStream {
             pub fn serialize_buf<'a>(
                 &self,
                 buf: &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>,
-            ) where
+            ) -> usize where
                 &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>:
                     IntoIterator<Item = &'a mut <#path::encoding::Vanilla as #path::Encoding>::Word> + 'a,
             {

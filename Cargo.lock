@@ -143,7 +143,7 @@ dependencies = [
 name = "dispatch-bundle"
 version = "0.1.0"
 dependencies = [
- "macros",
+ "embedded-command-macros 0.2.0",
  "serac",
 ]
 
@@ -177,6 +177,28 @@ dependencies = [
  "embedded-io-async",
  "heapless",
  "serac",
+]
+
+[[package]]
+name = "embedded-command-macros"
+version = "0.2.0"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "embedded-command-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9884ac9e0cbd689d3a600b303be44bfc073f3e8f932b97f4b6b82013df62962"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -278,16 +300,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "macros"
-version = "0.1.0"
-dependencies = [
- "Inflector",
- "proc-macro2",
- "quote",
- "syn 2.0.96",
-]
 
 [[package]]
 name = "memchr"
@@ -431,13 +443,13 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serac"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "defmt",
+ "embedded-command-macros 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fill-array",
- "macros",
  "panic-halt",
 ]
 
