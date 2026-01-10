@@ -5,7 +5,7 @@ set -euxo pipefail
 rustup toolchain install nightly --component miri
 
 TARGETS=("thumbv6m-none-eabi" "thumbv7em-none-eabi" "thumbv7em-none-eabihf")
-CRATES=("macros" "cookie-cutter" "dispatch-bundle")
+CRATES=("macros" "serac" "dispatch-bundle")
 
 # build
 
@@ -34,4 +34,4 @@ cargo clippy
 # cookie-cutter
 
 # asm analysis
-cargo build -p cookie-cutter --bin asm --target thumbv7em-none-eabihf --features binary --release
+cargo build -p serac --bin asm --target thumbv7em-none-eabihf --features binary --release

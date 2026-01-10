@@ -1,10 +1,13 @@
 [package]
-name = "cookie-cutter"
+name = "serac"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+description = "A static, modular, and light-weight serialization framework."
+license = "CC-BY-NC-SA-4.0"
+repository = "https://github.com/adinack/embedded-command"
 
 [dependencies]
-macros = { path = "../macros", version = "0.1.0" }
+macros = { package = "embedded-command-macros", version = "0.1.0" }
 fill-array = "0.2.1"
 
 # for binary
@@ -14,8 +17,7 @@ cortex-m-rt = { version = "0.7.3", optional = true }
 defmt = { version = "0.3.10", optional = true }
 
 [features]
-binary = ["dep:panic-halt", "dep:cortex-m", "cortex-m-rt"]
-cortex-m-rt = ["dep:cortex-m-rt"]
+binary = ["dep:panic-halt", "dep:cortex-m", "dep:cortex-m-rt"]
 defmt = ["dep:defmt"]
 
 [[bin]]

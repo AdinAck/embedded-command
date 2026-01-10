@@ -5,12 +5,14 @@
 pub mod encoding;
 pub mod medium;
 
-use core::hint::unreachable_unchecked;
-
-use encoding::{vanilla::Vanilla, Encoding};
-use medium::Medium;
+pub use encoding::Encoding;
+use encoding::vanilla::Vanilla;
+pub use medium::Medium;
 
 pub mod error {
+    use crate as serac;
+    use serac::encoding::vanilla;
+
     #[derive(Debug, Clone, Copy)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct EndOfInput;
@@ -19,7 +21,8 @@ pub mod error {
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Invalid;
 
-    #[derive(Debug, Clone, Copy)]
+    #[repr(u8)]
+    #[derive(Debug, Clone, Copy, vanilla::SerializeIter, vanilla::SerializeBuf)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum Error {
         EndOfInput,
@@ -79,25 +82,20 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
 /// An insufficient length *will* result in UB. Best to leave
 /// this implementation to the procedural macro.
 pub unsafe trait SerializeBuf<E: Encoding = Vanilla>: SerializeIter<E> {
-    /// The type respresenting the serialized form of the implementer type.
-    type Serialized: Medium<E>;
+    /// The size of the implementor when serialized, according to the encoding
+    /// scheme.
+    const SIZE: usize;
+}
 
-    /// Serialize the implementer type to a
-    /// serialization medium.
-    fn serialize_buf(&self, dest: &mut Self::Serialized) {
-        // SAFETY: dependent on safety of trait implementation.
-        // `Serialized` must be of sufficient length.
-        unsafe { SerializeIter::serialize_iter(self, dest.get_iter_mut()).unwrap_unchecked() };
-    }
-
-    /// Deserialize the implementer type from a
-    /// serialization medium.
-    fn deserialize_buf(src: &Self::Serialized) -> Result<Self, error::Invalid> {
-        SerializeIter::deserialize_iter(src.get_iter()).or_else(|err| match err {
-            error::Error::Invalid => Err(error::Invalid),
-            // SAFETY: dependent on safety of trait implementation.
-            // `Serialized` must be of sufficient length.
-            error::Error::EndOfInput => unsafe { unreachable_unchecked() },
-        })
-    }
+/// Create an empty buffer for the provided type serialized with the provided
+/// encoding scheme. Optionally, a multiplier may be provided which is multiplied by
+/// the minimum buffer size.
+#[macro_export]
+macro_rules! buf {
+    ($ty:ty: $enc:ty $(, $coef:expr)?) => {
+        <<$enc as serac::Encoding>::Serialized<{ <$ty as serac::SerializeBuf>::SIZE $(*$coef)? }> as serac::Medium>::default()
+    };
+    ($ty:ty $(, $coef:expr)?) => {
+        buf!($ty: serac::encoding::Vanilla $(, $coef)?)
+    };
 }

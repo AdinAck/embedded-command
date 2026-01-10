@@ -7,7 +7,7 @@ edition = "2021"
 packit = []
 
 [dependencies]
-macros = { path = "../macros" }
+macros = { package = "embedded-command-macros", path = "../macros" }
 
 [dev-dependencies]
-cookie-cutter = { path = "../cookie-cutter" }
+serac = { path = "../serac" }

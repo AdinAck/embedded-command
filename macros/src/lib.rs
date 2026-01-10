@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 
-mod cookie_cutter;
 mod dispatch_bundle;
+mod serac;
 
 /// Transform attached enum into a "bundle".
 ///
@@ -20,10 +20,10 @@ pub fn bundle(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Note
 ///
-/// Requires `cookie_cutter` to be in scope with that name.
+/// Requires `serac` to be in scope with that name.
 #[proc_macro_derive(SerializeIter)]
-pub fn serialize_iter_vanilla(item: TokenStream) -> TokenStream {
-    cookie_cutter::vanilla::serialize_iter(item)
+pub fn impl_serialize_iter_vanilla(item: TokenStream) -> TokenStream {
+    serac::vanilla::serialize_iter(item)
 }
 
 /// Generates the implementation block for conforming to `SerializeBuf` of the "vanilla" flavor.
@@ -32,8 +32,8 @@ pub fn serialize_iter_vanilla(item: TokenStream) -> TokenStream {
 ///
 /// # Note
 ///
-/// Requires `cookie_cutter` to be in scope with that name.
+/// Requires `serac` to be in scope with that name.
 #[proc_macro_derive(SerializeBuf)]
-pub fn serialize_buf_vanilla(item: TokenStream) -> TokenStream {
-    cookie_cutter::vanilla::serialize_buf(item)
+pub fn impl_serialize_buf_vanilla(item: TokenStream) -> TokenStream {
+    serac::vanilla::impl_serialize_buf(item)
 }

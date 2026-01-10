@@ -1,7 +1,10 @@
 [package]
-name = "macros"
+name = "embedded-command-macros"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+description = "Macros for the embedded command crate family."
+license = "CC-BY-NC-SA-4.0"
+repository = "https://github.com/adinack/embedded-command"
 
 [lib]
 proc-macro = true

@@ -142,7 +142,7 @@ fn size_of_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     if types.is_empty() {
         quote! { 0 }
     } else {
-        quote! { #( <<#types as #path::SerializeBuf>::Serialized as #path::medium::Medium>::SIZE )+* }
+        quote! { #( <#types as #path::SerializeBuf>::SIZE )+* }
     }
 }
 
@@ -307,13 +307,9 @@ fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
         .iter()
         .filter_map(|variant| {
             if !variant.fields.is_empty() {
-                let types: Vec<_> = variant
-                    .fields
-                    .iter()
-                    .map(|field| &field.ty)
-                    .collect();
+                let types: Vec<_> = variant.fields.iter().map(|field| &field.ty).collect();
 
-                Some(quote! { #(<<#types as #path::SerializeBuf>::Serialized as #path::medium::Medium>::SIZE)+* })
+                Some(quote! { #(<#types as #path::SerializeBuf>::SIZE)+* })
             } else {
                 None
             }
@@ -329,7 +325,7 @@ fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
             }
         )*
 
-        max + <<#repr as #path::SerializeBuf>::Serialized as #path::medium::Medium>::SIZE
+        max + <#repr as #path::SerializeBuf>::SIZE
     }}
 }
 
@@ -339,7 +335,7 @@ pub fn serialize_iter(item: TokenStream) -> TokenStream {
     let info = BodyInfo {
         ident: item.ident,
         generics: item.generics,
-        path: syn::parse2(quote! { cookie_cutter }).unwrap(),
+        path: syn::parse2(quote! { serac }).unwrap(),
     };
 
     let implementation = match item.data {
@@ -351,7 +347,7 @@ pub fn serialize_iter(item: TokenStream) -> TokenStream {
     implementation.into()
 }
 
-pub fn serialize_buf(item: TokenStream) -> TokenStream {
+pub fn impl_serialize_buf(item: TokenStream) -> TokenStream {
     let item: DeriveInput = syn::parse2(item.into()).unwrap();
 
     if !item.generics.params.is_empty() {
@@ -361,7 +357,7 @@ pub fn serialize_buf(item: TokenStream) -> TokenStream {
     let info = BodyInfo {
         ident: item.ident,
         generics: item.generics,
-        path: syn::parse2(quote! { cookie_cutter }).unwrap(),
+        path: syn::parse2(quote! { serac }).unwrap(),
     };
 
     let size = match item.data {
@@ -372,12 +368,37 @@ pub fn serialize_buf(item: TokenStream) -> TokenStream {
 
     let path = info.path;
     let ident = info.ident;
-    let (impl_generics, ty_generics, where_clause) = info.generics.split_for_impl();
-    let ty = quote! { #ident #ty_generics };
 
     quote! {
-        unsafe impl #impl_generics #path::SerializeBuf for #ty #ty_generics #where_clause {
-            type Serialized = [u8; #size];
+        unsafe impl #path::SerializeBuf for #ident {
+            const SIZE: usize = #size;
+        }
+
+        impl #ident {
+            /// Serialize into the serialization medium.
+            pub fn serialize_buf<'a>(
+                &self,
+                buf: &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>,
+            ) where
+                &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>:
+                    IntoIterator<Item = &'a mut <#path::encoding::Vanilla as #path::Encoding>::Word> + 'a,
+            {
+                unsafe { #path::SerializeIter::serialize_iter(self, buf).unwrap_unchecked() }
+            }
+
+            /// Deserialize from the serialization medium.
+            pub fn deserialize_buf<'a>(src: &'a <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>) -> Result<Self, #path::error::Invalid>
+            where
+                &'a <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>:
+                    IntoIterator<Item = &'a <#path::encoding::Vanilla as #path::Encoding>::Word> + 'a,
+            {
+                #path::SerializeIter::deserialize_iter(src).or_else(|err| match err {
+                    #path::error::Error::Invalid => Err(#path::error::Invalid),
+                    // SAFETY: dependent on safety of trait implementation.
+                    // `Serialized` must be of sufficient length.
+                    #path::error::Error::EndOfInput => unsafe { ::core::hint::unreachable_unchecked() },
+                })
+            }
         }
     }
     .into()
