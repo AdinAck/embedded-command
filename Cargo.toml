@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "dispatch-bundle",
     "serac",
-    "embedded-command",
+    # "embedded-command",
     "macros",
-    "packit",
+    # "packit",
 ]

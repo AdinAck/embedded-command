@@ -76,15 +76,38 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
 /// exact length. This length being the minimum needed for any value of the
 /// implementer type.
 ///
-/// To implement this trait, the type must already implement `SerializeIter` and the
-/// implementer must compute the necessary length of the serialization medium.
+/// To implement this trait, the type must already implement [`SerializeIter`] and [`Size`].
+pub trait SerializeBuf<const N: usize, E: Encoding = Vanilla>: SerializeIter<E> + Size<E> {
+    fn serialize_buf<'a>(&self, buf: &'a mut E::Serialized<N>) -> usize
+    where
+        &'a mut E::Serialized<N>: IntoIterator<Item = &'a mut E::Word>,
+        E::Word: 'a,
+    {
+        unsafe { SerializeIter::serialize_iter(self, buf).unwrap_unchecked() }
+    }
+
+    fn deserialize_buf<'a>(src: &'a E::Serialized<N>) -> Result<Self, error::Invalid>
+    where
+        &'a E::Serialized<N>: IntoIterator<Item = &'a E::Word>,
+        E::Word: 'a,
+    {
+        SerializeIter::deserialize_iter(src).or_else(|err| match err {
+            error::Error::Invalid => Err(error::Invalid),
+            // SAFETY: dependent on safety of trait implementation.
+            // `Serialized` must be of sufficient length.
+            error::Error::EndOfInput => unsafe { ::core::hint::unreachable_unchecked() },
+        })
+    }
+}
+
+/// This trait allows implementors to define the serialized size according to the encoding scheme.
 ///
 /// # Safety
 ///
 /// The value of the associated `SIZE` constant is critical. An insufficient size
 /// *will* result in UB. Best to leave this implementation to the procedural macro.
-pub unsafe trait SerializeBuf<E: Encoding = Vanilla>: SerializeIter<E> {
-    /// The size of the implementor when serialized, according to the encoding
+pub unsafe trait Size<E = Vanilla> {
+    // The size of the implementor when serialized, according to the encoding
     /// scheme.
     const SIZE: usize;
 }
@@ -95,7 +118,7 @@ pub unsafe trait SerializeBuf<E: Encoding = Vanilla>: SerializeIter<E> {
 #[macro_export]
 macro_rules! buf {
     ($ty:ty: $enc:ty $(, $coef:expr)?) => {
-        <<$enc as serac::Encoding>::Serialized<{ <$ty as serac::SerializeBuf>::SIZE $(*$coef)? }> as serac::Medium>::default()
+        <<$enc as serac::Encoding>::Serialized<{ <$ty as serac::Size>::SIZE $(*$coef)? }> as serac::Medium>::default()
     };
     ($ty:ty $(, $coef:expr)?) => {
         buf!($ty: serac::encoding::Vanilla $(, $coef)?)
