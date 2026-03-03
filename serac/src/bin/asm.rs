@@ -5,8 +5,8 @@ use core::ptr::{null, null_mut, read_volatile, write_volatile};
 
 use panic_halt as _;
 
-use cookie_cutter::{encoding::vanilla, SerializeIter};
 use cortex_m_rt::entry;
+use serac::{SerializeIter, encoding::vanilla};
 
 #[derive(vanilla::SerializeIter)]
 struct Foo {
@@ -21,7 +21,7 @@ fn deserialize<const N: usize>(buf: &[u8; N]) -> Foo {
 
 #[inline(never)]
 fn serialize<const N: usize>(foo: Foo, buf: &mut [u8; N]) {
-    unsafe { foo.serialize_iter(buf).unwrap_unchecked() }
+    unsafe { foo.serialize_iter(buf).unwrap_unchecked() };
 }
 
 #[entry]

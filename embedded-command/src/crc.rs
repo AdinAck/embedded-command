@@ -1,18 +1,18 @@
 use core::marker::PhantomData;
 
-use cookie_cutter::SerializeIter;
 use iter::{CRCComputeIter, CRCComputeIterMut};
+use serac::SerializeIter;
 
 mod iter;
 
 #[derive(Debug)]
 pub enum Error {
-    Serialize(cookie_cutter::error::Error),
+    Serialize(serac::error::Error),
     Crc,
 }
 
-impl From<cookie_cutter::error::Error> for Error {
-    fn from(value: cookie_cutter::error::Error) -> Self {
+impl From<serac::error::Error> for Error {
+    fn from(value: serac::error::Error) -> Self {
         Self::Serialize(value)
     }
 }
@@ -48,7 +48,7 @@ impl<P: SerializeIter, C: CRCProvider<Word = u8>> CRCPacket<P, C> {
         &'a self,
         dst: impl IntoIterator<Item = &'a mut C::Word>,
         crc_provider: &'a mut C,
-    ) -> Result<(), cookie_cutter::error::EndOfInput>
+    ) -> Result<(), serac::error::EndOfInput>
     where
         C::Word: 'a,
     {
@@ -87,7 +87,7 @@ impl<P: SerializeIter, C: CRCProvider<Word = u8>> CRCPacket<P, C> {
 
 #[cfg(test)]
 mod tests {
-    use cookie_cutter::encoding::vanilla;
+    use serac::encoding::vanilla;
 
     use super::*;
 

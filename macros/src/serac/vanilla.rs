@@ -144,7 +144,7 @@ fn size_of_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     if types.is_empty() {
         quote! { 0 }
     } else {
-        quote! { #( <#types as #path::SerializeBuf>::SIZE )+* }
+        quote! { #( <#types as #path::Size>::SIZE )+* }
     }
 }
 
@@ -312,7 +312,7 @@ fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
             if !variant.fields.is_empty() {
                 let types: Vec<_> = variant.fields.iter().map(|field| &field.ty).collect();
 
-                Some(quote! { #(<#types as #path::SerializeBuf>::SIZE)+* })
+                Some(quote! { #(<#types as #path::Size>::SIZE)+* })
             } else {
                 None
             }
@@ -328,7 +328,7 @@ fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
             }
         )*
 
-        max + <#repr as #path::SerializeBuf>::SIZE
+        max + <#repr as #path::Size>::SIZE
     }}
 }
 
@@ -373,36 +373,11 @@ pub fn impl_serialize_buf(item: TokenStream) -> TokenStream {
     let ident = info.ident;
 
     quote! {
-        unsafe impl #path::SerializeBuf for #ident {
+        unsafe impl #path::Size for #ident {
             const SIZE: usize = #size;
         }
 
-        impl #ident {
-            /// Serialize into the serialization medium.
-            pub fn serialize_buf<'a>(
-                &self,
-                buf: &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>,
-            ) -> usize where
-                &'a mut <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>:
-                    IntoIterator<Item = &'a mut <#path::encoding::Vanilla as #path::Encoding>::Word> + 'a,
-            {
-                unsafe { #path::SerializeIter::serialize_iter(self, buf).unwrap_unchecked() }
-            }
-
-            /// Deserialize from the serialization medium.
-            pub fn deserialize_buf<'a>(src: &'a <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>) -> Result<Self, #path::error::Invalid>
-            where
-                &'a <#path::encoding::Vanilla as #path::Encoding>::Serialized<{ <Self as #path::SerializeBuf>::SIZE }>:
-                    IntoIterator<Item = &'a <#path::encoding::Vanilla as #path::Encoding>::Word> + 'a,
-            {
-                #path::SerializeIter::deserialize_iter(src).or_else(|err| match err {
-                    #path::error::Error::Invalid => Err(#path::error::Invalid),
-                    // SAFETY: dependent on safety of trait implementation.
-                    // `Serialized` must be of sufficient length.
-                    #path::error::Error::EndOfInput => unsafe { ::core::hint::unreachable_unchecked() },
-                })
-            }
-        }
+        impl #path::SerializeBuf<{ <#ident as #path::Size>::SIZE }> for #ident {}
     }
     .into()
 }

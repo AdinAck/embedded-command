@@ -4,8 +4,8 @@ pub use macros::bundle;
 
 #[cfg(test)]
 mod tests {
-    use cookie_cutter::{encoding::vanilla, SerializeBuf};
     use macros::bundle;
+    use serac::{buf, encoding::vanilla, SerializeBuf};
 
     trait Foo {
         fn bar(&self) -> u8;
@@ -126,7 +126,7 @@ mod tests {
             C = TEN,
         }
 
-        let mut buf = <MyBundle as SerializeBuf>::Serialized::default();
+        let mut buf = buf!(MyBundle);
 
         MyBundle::C(C {
             val: 15,

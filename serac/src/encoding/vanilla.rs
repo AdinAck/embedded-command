@@ -4,7 +4,7 @@ use fill_array::fill;
 
 use super::Encoding;
 
-use crate::{Medium, SerializeBuf, SerializeIter, error};
+use crate::{Medium, SerializeBuf, SerializeIter, Size, error};
 
 // reexport proc macros
 pub use macros::{SerializeBuf, SerializeIter};
@@ -62,9 +62,11 @@ macro_rules! impl_number {
         }
 
         // SAFETY: $SIZE must be correct as it is validated by it's usage with `from_le_bytes`
-        unsafe impl SerializeBuf for $TYPE {
+        unsafe impl Size for $TYPE {
             const SIZE: usize = $SIZE;
         }
+
+        impl SerializeBuf<{ <$TYPE as Size>::SIZE }> for $TYPE {}
     };
 }
 
@@ -117,7 +119,7 @@ impl SerializeIter for bool {
     }
 }
 
-unsafe impl SerializeBuf for bool {
+unsafe impl Size for bool {
     const SIZE: usize = 1;
 }
 
@@ -164,7 +166,7 @@ impl<T: SerializeIter, const N: usize> SerializeIter for [T; N] {
 
 // implementing `SerializeBuf` for generic arrays requires the "generic_const_exprs" feature
 
-unsafe impl<T: SerializeBuf, const N: usize> SerializeBuf for [T; N] {
+unsafe impl<T: Size, const N: usize> Size for [T; N] {
     const SIZE: usize = T::SIZE * N;
 }
 
@@ -208,7 +210,7 @@ macro_rules! impl_tuple {
             }
         }
 
-        unsafe impl<$($TYPE: SerializeBuf),+> SerializeBuf for ($($TYPE,)+) {
+        unsafe impl<$($TYPE: Size),+> Size for ($($TYPE,)+) {
             const SIZE: usize = $($TYPE::SIZE+)+0;
         }
     };
@@ -481,7 +483,7 @@ mod tests {
             #[derive(Debug, PartialEq, vanilla::SerializeIter)]
             struct BarGen<T>
             where
-                T: SerializeIter + SerializeBuf,
+                T: SerializeIter,
             {
                 a: T,
                 b: FooGen<bool, T>,
