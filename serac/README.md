@@ -59,7 +59,7 @@ use serac::{buf, encoding::vanilla, SerializeBuf};
 const BE: u8 = 0xbe;
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+#[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, SerializeBuf)]
 enum Foo {
     A,
     B(u8, i16) = 0xde,
@@ -78,3 +78,50 @@ assert_eq(foo, readback);
 
 This example shows a crazy enum with lots of fancy things going on, which is able
 to be serialized by serac.
+
+### Serialize a custom generic type
+
+Mostly, the serialization of generic types is the same:
+
+```rust
+use serac::{buf, encoding::vanilla, SerializeIter, SerializeBuf};
+
+const BE: u8 = 0xbe;
+
+#[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::Size)]
+#[repr(u16)]
+enum Foo<T, U> {
+    A(u8, T),
+    B { woah: U } = BE as u16,
+}
+
+let foo = Foo::B { woah: 42i16 };
+
+let mut buf = buf!(Foo<bool, i16>);
+foo.serialize_iter(&mut buf).unwrap();
+
+let readback = SerializeIter::deserialize_iter(&buf).unwrap();
+assert_eq(foo, readback);
+
+// ...
+```
+
+But `SerializeBuf` is not derivable on generic types.
+
+You can, however, implement `SerializeBuf` for concretely specified aliases of
+generic types:
+
+```rust
+// ...
+
+#[serac::serialize_buf]
+type ConcreteFoo = Foo<bool, i16>;
+
+let foo = Foo::B { woah: 42i16 };
+
+let mut buf = buf!(ConcreteFoo);
+foo.serialize_buf(&mut buf);
+
+let readback = SerializeBuf::deserialize_buf(&buf).unwrap();
+assert_eq(foo, readback);
+```
