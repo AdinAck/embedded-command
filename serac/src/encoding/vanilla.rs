@@ -7,7 +7,7 @@ use super::Encoding;
 use crate::{Medium, SerializeBuf, SerializeIter, Size, error};
 
 // reexport proc macros
-pub use macros::{SerializeBuf, SerializeIter};
+pub use macros::{SerializeIter, Size};
 
 pub struct Vanilla;
 
@@ -66,7 +66,7 @@ macro_rules! impl_number {
             const SIZE: usize = $SIZE;
         }
 
-        impl SerializeBuf<{ <$TYPE as Size>::SIZE }> for $TYPE {}
+        unsafe impl SerializeBuf<{ <$TYPE as Size>::SIZE }> for $TYPE {}
     };
 }
 
@@ -250,6 +250,12 @@ impl<T> SerializeIter for PhantomData<T> {
     }
 }
 
+unsafe impl<T> Size for PhantomData<T> {
+    const SIZE: usize = 0;
+}
+
+unsafe impl<T> SerializeBuf<0> for PhantomData<T> {}
+
 #[cfg(test)]
 mod tests {
     mod primitives {
@@ -319,19 +325,27 @@ mod tests {
         mod structs {
             use super::*;
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+            #[derive(
+                Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf,
+            )]
             struct Foo {
                 a: u8,
                 b: i16,
             }
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+            #[derive(
+                Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf,
+            )]
             struct Nothing;
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+            #[derive(
+                Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf,
+            )]
             struct Bar(u8, Nothing, i16);
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+            #[derive(
+                Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf,
+            )]
             struct Baz {
                 numbers: [f32; 16],
                 flags: (bool, u8),
@@ -415,7 +429,9 @@ mod tests {
 
             const BE: u8 = 0xbe;
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::SerializeBuf)]
+            #[derive(
+                Debug, PartialEq, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf,
+            )]
             #[repr(u8)]
             enum Foo {
                 A,
@@ -469,26 +485,22 @@ mod tests {
         fn generics() {
             const BE: u8 = 0xbe;
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter)]
+            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::Size)]
             #[repr(u16)]
-            enum FooGen<T, U>
-            where
-                T: SerializeIter,
-                U: SerializeIter,
-            {
+            enum FooGen<T, U> {
                 A(u8, T),
                 B { woah: U } = BE as u16, // arbitrary expression in discriminant!
             }
 
-            #[derive(Debug, PartialEq, vanilla::SerializeIter)]
-            struct BarGen<T>
-            where
-                T: SerializeIter,
-            {
+            #[derive(Debug, PartialEq, vanilla::SerializeIter, vanilla::Size)]
+            struct BarGen<T> {
                 a: T,
                 b: FooGen<bool, T>,
                 c: PhantomData<T>,
             }
+
+            #[serac::serialize_buf]
+            type ConcreteFoo = FooGen<bool, i16>;
 
             let mut buf = [0; 4];
 
@@ -501,13 +513,23 @@ mod tests {
             // buf is too small
             assert!(test_bar.serialize_iter(&mut buf).is_err());
 
-            let mut buf = [0; 8];
+            let mut buf = buf!(BarGen<i16>);
 
             assert_eq!(6, test_bar.serialize_iter(&mut buf).unwrap());
 
             let read_bar = SerializeIter::deserialize_iter(&buf).unwrap();
 
             assert_eq!(test_bar, read_bar); // comparison provides type inference for deserialization!
+
+            let mut buf = buf!(ConcreteFoo);
+
+            let test_foo = ConcreteFoo::B { woah: -42 };
+
+            assert_eq!(4, test_foo.serialize_buf(&mut buf));
+
+            let read_foo = SerializeBuf::deserialize_buf(&buf).unwrap();
+
+            assert_eq!(test_foo, read_foo); // comparison provides type inference for deserialization!
         }
     }
 }

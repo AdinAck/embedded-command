@@ -7,6 +7,7 @@ pub mod medium;
 
 pub use encoding::Encoding;
 use encoding::vanilla::Vanilla;
+pub use macros::{SerializeBuf, impl_serialize_buf_alias as serialize_buf};
 pub use medium::Medium;
 
 pub mod error {
@@ -27,7 +28,7 @@ pub mod error {
 
     /// Deserialization failed.
     #[repr(u8)]
-    #[derive(Debug, Clone, Copy, vanilla::SerializeIter, vanilla::SerializeBuf)]
+    #[derive(Debug, Clone, Copy, vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum Error {
         /// The encoder reached the end of the input before deserialization was
@@ -77,7 +78,14 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
 /// implementer type.
 ///
 /// To implement this trait, the type must already implement [`SerializeIter`] and [`Size`].
-pub trait SerializeBuf<const N: usize, E: Encoding = Vanilla>: SerializeIter<E> + Size<E> {
+///
+/// # Safety
+///
+/// This trait must only be implemented for all `T` where `T: Size` and
+/// `N == T::SIZE`.
+pub unsafe trait SerializeBuf<const N: usize, E: Encoding = Vanilla>:
+    SerializeIter<E> + Size<E>
+{
     fn serialize_buf<'a>(&self, buf: &'a mut E::Serialized<N>) -> usize
     where
         &'a mut E::Serialized<N>: IntoIterator<Item = &'a mut E::Word>,

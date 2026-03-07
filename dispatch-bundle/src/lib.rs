@@ -81,17 +81,17 @@ mod tests {
 
     #[test]
     fn cookie_cutter() {
-        #[derive(vanilla::SerializeIter, vanilla::SerializeBuf)]
+        #[derive(vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf)]
         struct A {
             val: u8,
         }
 
-        #[derive(vanilla::SerializeIter, vanilla::SerializeBuf)]
+        #[derive(vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf)]
         struct B {
             val: u16,
         }
 
-        #[derive(vanilla::SerializeIter, vanilla::SerializeBuf)]
+        #[derive(vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf)]
         struct C {
             val: u8,
             other: A,
@@ -118,7 +118,7 @@ mod tests {
         const TEN: u8 = 10;
 
         #[bundle(Foo)]
-        #[derive(vanilla::SerializeIter, vanilla::SerializeBuf)]
+        #[derive(vanilla::SerializeIter, vanilla::Size, serac::SerializeBuf)]
         #[repr(u8)]
         enum MyBundle {
             A,

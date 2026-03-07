@@ -110,13 +110,13 @@ dependencies = [
 name = "dispatch-bundle"
 version = "0.1.0"
 dependencies = [
- "embedded-command-macros 0.3.0",
+ "embedded-command-macros 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serac",
 ]
 
 [[package]]
 name = "embedded-command-macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -126,9 +126,9 @@ dependencies = [
 
 [[package]]
 name = "embedded-command-macros"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f424c060861bb940cf4960cb69acd819a5c9748d6eb21b5adee2d2931355badd"
+checksum = "36092ddd7791b6ed78443892d78fdeb878ce9c5fa3f47ae72a724a2254c1b01c"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -285,12 +285,12 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serac"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "defmt",
- "embedded-command-macros 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded-command-macros 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fill-array",
  "panic-halt",
 ]

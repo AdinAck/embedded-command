@@ -1,17 +1,11 @@
+use std::collections::HashSet;
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Fields, Generics, Ident, Index, Path, Type,
-    Variant,
-};
+use syn::{Attribute, Data, DataEnum, DataStruct, DeriveInput, Fields, Index, Type, Variant};
 
-#[derive(Clone)]
-struct BodyInfo {
-    ident: Ident,
-    generics: Generics,
-    path: Path,
-}
+use crate::serac::BodyInfo;
 
 fn get_repr<'a>(mut attrs: impl Iterator<Item = &'a Attribute>) -> Type {
     attrs
@@ -118,6 +112,19 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
         }
     };
 
+    let (.., types) = size_of_struct(s, info);
+
+    let where_clause = {
+        let constraints = types.iter().map(|ty| {
+            quote! { #ty: #path::SerializeIter }
+        });
+
+        match where_clause {
+            Some(w) => quote! { #w #(#constraints,)* },
+            None => quote! { where #(#constraints,)* },
+        }
+    };
+
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
             fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
@@ -137,15 +144,18 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     }
 }
 
-fn size_of_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
-    let types: Vec<_> = s.fields.iter().map(|field| &field.ty).collect();
+fn size_of_struct(s: DataStruct, info: &BodyInfo) -> (TokenStream2, HashSet<Type>) {
+    let types: Vec<_> = s.fields.iter().map(|field| field.ty.clone()).collect();
     let path = &info.path;
 
-    if types.is_empty() {
-        quote! { 0 }
-    } else {
-        quote! { #( <#types as #path::Size>::SIZE )+* }
-    }
+    (
+        if types.is_empty() {
+            quote! { 0 }
+        } else {
+            quote! { #( <#types as #path::Size>::SIZE )+* }
+        },
+        HashSet::from_iter(types),
+    )
 }
 
 fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
@@ -260,6 +270,19 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
         })
         .collect();
 
+    let (.., types) = size_of_enum(e, info, repr.clone());
+
+    let where_clause = {
+        let constraints = types.iter().map(|ty| {
+            quote! { #ty: #path::SerializeIter }
+        });
+
+        match where_clause {
+            Some(w) => quote! { #w #(#constraints,)* },
+            None => quote! { where #(#constraints,)* },
+        }
+    };
+
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
             fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
@@ -303,33 +326,44 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
     }
 }
 
-fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
+fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> (TokenStream2, HashSet<Type>) {
+    let mut types = HashSet::new();
+
     let path = &info.path;
     let sizes: Vec<_> = e
         .variants
         .iter()
         .filter_map(|variant| {
             if !variant.fields.is_empty() {
-                let types: Vec<_> = variant.fields.iter().map(|field| &field.ty).collect();
+                let variant_types: Vec<_> = variant
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
 
-                Some(quote! { #(<#types as #path::Size>::SIZE)+* })
+                types.extend(variant_types.iter().cloned());
+
+                Some(quote! { #(<#variant_types as #path::Size>::SIZE)+* })
             } else {
                 None
             }
         })
         .collect();
 
-    quote! {{
-        let mut max = 0;
+    (
+        quote! {{
+            let mut max = 0;
 
-        #(
-            if #sizes > max {
-                max = #sizes;
-            }
-        )*
+            #(
+                if #sizes > max {
+                    max = #sizes;
+                }
+            )*
 
-        max + <#repr as #path::Size>::SIZE
-    }}
+            max + <#repr as #path::Size>::SIZE
+        }},
+        types,
+    )
 }
 
 pub fn serialize_iter(item: TokenStream) -> TokenStream {
@@ -350,12 +384,8 @@ pub fn serialize_iter(item: TokenStream) -> TokenStream {
     implementation.into()
 }
 
-pub fn impl_serialize_buf(item: TokenStream) -> TokenStream {
+pub fn impl_size(item: TokenStream) -> TokenStream {
     let item: DeriveInput = syn::parse2(item.into()).unwrap();
-
-    if !item.generics.params.is_empty() {
-        panic!("SerializeBuf is incompatible with generic types. You may still use SerializeIter.");
-    }
 
     let info = BodyInfo {
         ident: item.ident,
@@ -363,21 +393,32 @@ pub fn impl_serialize_buf(item: TokenStream) -> TokenStream {
         path: syn::parse2(quote! { serac }).unwrap(),
     };
 
-    let size = match item.data {
+    let (size, types) = match item.data {
         Data::Struct(s) => size_of_struct(s, &info),
         Data::Enum(e) => size_of_enum(e, &info, get_repr(item.attrs.iter())),
         _ => panic!("Vanilla serializer is only implemented for structs and enums."),
     };
 
+    let (impl_generics, ty_generics, where_clause) = info.generics.split_for_impl();
+
     let path = info.path;
     let ident = info.ident;
 
+    let where_clause = {
+        let constraints = types.iter().map(|ty| {
+            quote! { #ty: #path::Size }
+        });
+
+        match where_clause {
+            Some(w) => quote! { #w #(#constraints,)* },
+            None => quote! { where #(#constraints,)* },
+        }
+    };
+
     quote! {
-        unsafe impl #path::Size for #ident {
+        unsafe impl #impl_generics #path::Size for #ident #ty_generics #where_clause {
             const SIZE: usize = #size;
         }
-
-        impl #path::SerializeBuf<{ <#ident as #path::Size>::SIZE }> for #ident {}
     }
     .into()
 }
