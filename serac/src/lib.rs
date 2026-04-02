@@ -115,7 +115,7 @@ pub unsafe trait SerializeBuf<const N: usize, E: Encoding = Vanilla>:
 /// The value of the associated `SIZE` constant is critical. An insufficient size
 /// *will* result in UB. Best to leave this implementation to the procedural macro.
 pub unsafe trait Size<E = Vanilla> {
-    // The size of the implementor when serialized, according to the encoding
+    /// The size of the implementor when serialized, according to the encoding
     /// scheme.
     const SIZE: usize;
 }
