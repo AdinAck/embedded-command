@@ -227,6 +227,46 @@ impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e));
 impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f));
 impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f), (G, g));
 
+impl<T: SerializeIter> SerializeIter for Option<T> {
+    fn serialize_iter<'a>(
+        &self,
+        dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
+    ) -> Result<usize, error::EndOfInput>
+    where
+        <Vanilla as Encoding>::Word: 'a,
+    {
+        let mut dst = dst.into_iter();
+
+        match self {
+            Some(t) => {
+                true.serialize_iter(&mut dst)?;
+                t.serialize_iter(&mut dst)
+            }
+            None => false.serialize_iter(&mut dst),
+        }
+    }
+
+    fn deserialize_iter<'a>(
+        src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    ) -> Result<Self, error::Error>
+    where
+        <Vanilla as Encoding>::Word: 'a,
+    {
+        let mut src = src.into_iter();
+
+        let discriminant = bool::deserialize_iter(&mut src)?;
+
+        Ok(match discriminant {
+            true => Some(T::deserialize_iter(&mut src)?),
+            false => None,
+        })
+    }
+}
+
+unsafe impl<T: Size> Size for Option<T> {
+    const SIZE: usize = 1 + T::SIZE;
+}
+
 // PhantomData impl (no-op)
 
 impl<T> SerializeIter for PhantomData<T> {
