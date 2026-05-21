@@ -267,6 +267,35 @@ unsafe impl<T: Size> Size for Option<T> {
     const SIZE: usize = 1 + T::SIZE;
 }
 
+// unit impl (no-op)
+
+impl SerializeIter for () {
+    fn serialize_iter<'a>(
+        &self,
+        _dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
+    ) -> Result<usize, error::EndOfInput>
+    where
+        <Vanilla as Encoding>::Word: 'a,
+    {
+        Ok(0)
+    }
+
+    fn deserialize_iter<'a>(
+        _src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    ) -> Result<Self, error::Error>
+    where
+        <Vanilla as Encoding>::Word: 'a,
+    {
+        Ok(())
+    }
+}
+
+unsafe impl Size for () {
+    const SIZE: usize = 0;
+}
+
+unsafe impl SerializeBuf<0> for () {}
+
 // PhantomData impl (no-op)
 
 impl<T> SerializeIter for PhantomData<T> {
