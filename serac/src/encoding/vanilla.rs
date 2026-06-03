@@ -236,11 +236,14 @@ impl<T: SerializeIter> SerializeIter for Option<T> {
         <Vanilla as Encoding>::Word: 'a,
     {
         let mut dst = dst.into_iter();
+        let mut used = 0;
 
         match self {
             Some(t) => {
-                true.serialize_iter(&mut dst)?;
-                t.serialize_iter(&mut dst)
+                used += true.serialize_iter(&mut dst)?;
+                used += t.serialize_iter(&mut dst)?;
+
+                Ok(used)
             }
             None => false.serialize_iter(&mut dst),
         }
@@ -380,6 +383,24 @@ mod tests {
                     _ => panic!(),
                 }
             }
+        }
+    }
+
+    mod builtins {
+        use crate as serac;
+
+        use serac::{SerializeBuf as _, Size as _, buf};
+
+        #[test]
+        fn option() {
+            #[serac::serialize_buf]
+            type Test = Option<u32>;
+
+            let mut buf = buf!(Test);
+
+            let used = Some(0xdeadbeef).serialize_buf(&mut buf);
+
+            assert_eq!(used, u32::SIZE + 1);
         }
     }
 
