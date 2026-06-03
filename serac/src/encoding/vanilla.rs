@@ -4,7 +4,7 @@ use fill_array::fill;
 
 use super::Encoding;
 
-use crate::{Medium, SerializeBuf, SerializeIter, Size, error};
+use crate::{Buf, Medium, SerializeBuf, SerializeIter, Size, error};
 
 // reexport proc macros
 pub use macros::{SerializeIter, Size};
@@ -25,15 +25,13 @@ impl<const N: usize> Medium for [u8; N] {
 macro_rules! impl_number {
     ($TYPE:ty, $SIZE:expr) => {
         impl SerializeIter for $TYPE {
-            fn serialize_iter<'a>(
+            fn ser<'a>(
                 &self,
-                dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-            ) -> Result<usize, error::EndOfInput>
+                dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+            ) -> Result<(), error::EndOfInput>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
-                let mut dst = dst.into_iter();
-
                 // 1. vanilla encoding uses bytes
                 // 2. length constraint is on dest, not the type
                 // 3. le_bytes because most no_std targets are LE native
@@ -41,17 +39,15 @@ macro_rules! impl_number {
                     *dst.next().ok_or(error::EndOfInput)? = byte;
                 }
 
-                Ok($SIZE)
+                Ok(())
             }
 
-            fn deserialize_iter<'a>(
-                src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+            fn de<'a>(
+                src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
             ) -> Result<Self, error::Error>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
-                let mut src = src.into_iter();
-
                 // 1. vanilla encoding uses bytes
                 // 2. all byte values are valid
                 let bytes = fill![*src.next().ok_or(error::EndOfInput)?; $SIZE];
@@ -89,28 +85,24 @@ impl_number!(f64, 8);
 // bool impls
 
 impl SerializeIter for bool {
-    fn serialize_iter<'a>(
+    fn ser<'a>(
         &self,
-        dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<usize, error::EndOfInput>
+        dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+    ) -> Result<(), error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut dst = dst.into_iter();
-
         *dst.next().ok_or(error::EndOfInput)? = if *self { 1 } else { 0 };
 
-        Ok(1)
+        Ok(())
     }
 
-    fn deserialize_iter<'a>(
-        src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    fn de<'a>(
+        src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
     ) -> Result<Self, error::Error>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut src = src.into_iter();
-
         match *src.next().ok_or(error::EndOfInput)? {
             0 => Ok(false),
             1 => Ok(true),
@@ -126,37 +118,32 @@ unsafe impl Size for bool {
 // array impls
 
 impl<T: SerializeIter, const N: usize> SerializeIter for [T; N] {
-    fn serialize_iter<'a>(
+    fn ser<'a>(
         &self,
-        dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<usize, error::EndOfInput>
+        dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+    ) -> Result<(), error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut dst = dst.into_iter();
-        let mut used = 0;
-
         for item in self {
-            used += item.serialize_iter(&mut dst)?;
+            item.ser(dst)?;
         }
 
-        Ok(used)
+        Ok(())
     }
 
-    fn deserialize_iter<'a>(
-        src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    fn de<'a>(
+        src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
     ) -> Result<Self, error::Error>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut src = src.into_iter();
-
         // `MaybeUninit` is used to avoid a `Default` requirement
         // SAFETY: `result` is purely written to
         let mut result: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
 
         for value in result.iter_mut() {
-            value.write(T::deserialize_iter(&mut src)?);
+            value.write(T::de(src)?);
         }
 
         // SAFETY: by now all elements are initialized
@@ -175,35 +162,30 @@ unsafe impl<T: Size, const N: usize> Size for [T; N] {
 macro_rules! impl_tuple {
     ( $(($TYPE:ident, $NAME:ident)),+ ) => {
         impl<$($TYPE: SerializeIter),+> SerializeIter for ($($TYPE,)+) {
-            fn serialize_iter<'a>(
+            fn ser<'a>(
                 &self,
-                dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-            ) -> Result<usize, error::EndOfInput>
+                dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+            ) -> Result<(), error::EndOfInput>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
-                let mut dst = dst.into_iter();
-                let mut used = 0;
-
                 let ($($NAME,)+) = self;
 
                 $(
-                    used += $NAME.serialize_iter(&mut dst)?;
+                    $NAME.ser(dst)?;
                 )+
 
-                Ok(used)
+                Ok(())
             }
 
-            fn deserialize_iter<'a>(
-                src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+            fn de<'a>(
+                src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
             ) -> Result<Self, error::Error>
             where
                 <Vanilla as Encoding>::Word: 'a,
             {
-                let mut src = src.into_iter();
-
                 $(
-                    let $NAME = $TYPE::deserialize_iter(&mut src)?;
+                    let $NAME = $TYPE::de(src)?;
                 )+
 
                 Ok(($($NAME,)+))
@@ -228,39 +210,32 @@ impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f));
 impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f), (G, g));
 
 impl<T: SerializeIter> SerializeIter for Option<T> {
-    fn serialize_iter<'a>(
+    fn ser<'a>(
         &self,
-        dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<usize, error::EndOfInput>
+        dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+    ) -> Result<(), error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut dst = dst.into_iter();
-        let mut used = 0;
-
         match self {
             Some(t) => {
-                used += true.serialize_iter(&mut dst)?;
-                used += t.serialize_iter(&mut dst)?;
-
-                Ok(used)
+                true.ser(dst)?;
+                t.ser(dst)
             }
-            None => false.serialize_iter(&mut dst),
+            None => false.ser(dst),
         }
     }
 
-    fn deserialize_iter<'a>(
-        src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    fn de<'a>(
+        src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
     ) -> Result<Self, error::Error>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        let mut src = src.into_iter();
-
-        let discriminant = bool::deserialize_iter(&mut src)?;
+        let discriminant = bool::de(src)?;
 
         Ok(match discriminant {
-            true => Some(T::deserialize_iter(&mut src)?),
+            true => Some(T::de(src)?),
             false => None,
         })
     }
@@ -273,18 +248,18 @@ unsafe impl<T: Size> Size for Option<T> {
 // unit impl (no-op)
 
 impl SerializeIter for () {
-    fn serialize_iter<'a>(
+    fn ser<'a>(
         &self,
-        _dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<usize, error::EndOfInput>
+        _dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+    ) -> Result<(), error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        Ok(0)
+        Ok(())
     }
 
-    fn deserialize_iter<'a>(
-        _src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    fn de<'a>(
+        _src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
     ) -> Result<Self, error::Error>
     where
         <Vanilla as Encoding>::Word: 'a,
@@ -302,18 +277,18 @@ unsafe impl SerializeBuf<0> for () {}
 // PhantomData impl (no-op)
 
 impl<T> SerializeIter for PhantomData<T> {
-    fn serialize_iter<'a>(
+    fn ser<'a>(
         &self,
-        _dst: impl IntoIterator<Item = &'a mut <Vanilla as Encoding>::Word>,
-    ) -> Result<usize, error::EndOfInput>
+        _dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
+    ) -> Result<(), error::EndOfInput>
     where
         <Vanilla as Encoding>::Word: 'a,
     {
-        Ok(0)
+        Ok(())
     }
 
-    fn deserialize_iter<'a>(
-        _src: impl IntoIterator<Item = &'a <Vanilla as Encoding>::Word>,
+    fn de<'a>(
+        _src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
     ) -> Result<Self, error::Error>
     where
         <Vanilla as Encoding>::Word: 'a,

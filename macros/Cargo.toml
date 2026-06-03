@@ -1,6 +1,6 @@
 [package]
 name = "embedded-command-macros"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 description = "Macros for the embedded command crate family."
 license = "CC-BY-NC-SA-4.0"
