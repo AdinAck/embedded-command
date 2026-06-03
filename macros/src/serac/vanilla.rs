@@ -46,7 +46,7 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     let types: Vec<_> = s.fields.iter().map(|field| &field.ty).collect();
 
     let (ser_body, deser_body) = match &s.fields {
-        Fields::Unit => (quote! { Ok(0) }, quote! { Ok(Self) }),
+        Fields::Unit => (quote! { Ok(()) }, quote! { Ok(Self) }),
         Fields::Unnamed(fields) => {
             let attr_tags: Vec<_> = fields
                 .unnamed
@@ -57,22 +57,17 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
 
             (
                 quote! {
-                    let mut dst = dst.into_iter();
-                    let mut used = 0;
-
                     #(
-                        used += #path::SerializeIter::serialize_iter(&self.#attr_tags, &mut dst)?;
+                        #path::SerializeIter::ser(&self.#attr_tags, dst)?;
                     )*
 
-                    Ok(used)
+                    Ok(())
                 },
                 quote! {
-                    let mut src = src.into_iter();
-
                     Ok(
                         Self(
                             #(
-                                <#types as #path::SerializeIter>::deserialize_iter(&mut src)?,
+                                <#types as #path::SerializeIter>::de(src)?,
                             )*
                         )
                     )
@@ -88,22 +83,17 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
 
             (
                 quote! {
-                    let mut dst = dst.into_iter();
-                    let mut used = 0;
-
                     #(
-                        used += #path::SerializeIter::serialize_iter(&self.#attr_idents, &mut dst)?;
+                        #path::SerializeIter::ser(&self.#attr_idents, dst)?;
                     )*
 
-                    Ok(used)
+                    Ok(())
                 },
                 quote! {
-                    let mut src = src.into_iter();
-
                     Ok(
                         Self {
                             #(
-                                #attr_idents: <#types as #path::SerializeIter>::deserialize_iter(&mut src)?,
+                                #attr_idents: <#types as #path::SerializeIter>::de(src)?,
                             )*
                         }
                     )
@@ -127,14 +117,14 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
+            fn ser<'a>(&self, dst: &mut #path::Buf<impl Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<(), #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
                 #ser_body
             }
 
-            fn deserialize_iter<'a>(src: impl IntoIterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<Self, #path::error::Error>
+            fn de<'a>(src: &mut #path::Buf<impl Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<Self, #path::error::Error>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
@@ -183,9 +173,7 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
             let ident = &variant.ident;
             match &variant.fields {
                 Fields::Unit => quote! {
-                    #ident => {
-                        #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)
-                    }
+                    #ident => #path::SerializeIter::ser(&#tag_const, dst)
                 },
                 Fields::Unnamed(fields) => {
                     let idents: Vec<_> = fields
@@ -201,12 +189,12 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
                     quote! {
                         #ident(#(#idents),*) => {
-                            used += #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
+                            #path::SerializeIter::ser(&#tag_const, dst)?;
                             #(
-                                used += #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
+                                #path::SerializeIter::ser(#idents, dst)?;
                             )*
 
-                            Ok(used)
+                            Ok(())
                         }
                     }
                 }
@@ -219,12 +207,12 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
                     quote! {
                         #ident{#(#idents),*} => {
-                            used += #path::SerializeIter::serialize_iter(&#tag_const, &mut dst)?;
+                            #path::SerializeIter::ser(&#tag_const, dst)?;
                             #(
-                                used += #path::SerializeIter::serialize_iter(#idents, &mut dst)?;
+                                #path::SerializeIter::ser(#idents, dst)?;
                             )*
 
-                            Ok(used)
+                            Ok(())
                         }
                     }
                 }
@@ -245,7 +233,7 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
                     quote! {
                         #ident (
                             #(
-                                <#types as #path::SerializeIter>::deserialize_iter(&mut src)?,
+                                <#types as #path::SerializeIter>::de(src)?,
                             )*
                         )
                     }
@@ -261,7 +249,7 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
                     quote! {
                         #ident {
                             #(
-                                #idents: <#types as #path::SerializeIter>::deserialize_iter(&mut src)?,
+                                #idents: <#types as #path::SerializeIter>::de(src)?,
                             )*
                         }
                     }
@@ -285,13 +273,10 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn serialize_iter<'a>(&self, dst: impl IntoIterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<usize, #path::error::EndOfInput>
+            fn ser<'a>(&self, dst: &mut #path::Buf<impl Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<(), #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
-                let mut dst = dst.into_iter();
-                let mut used = 0;
-
                 #(
                     const #tag_consts: #repr = #tags;
                 )*
@@ -303,17 +288,15 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
                 }
             }
 
-            fn deserialize_iter<'a>(src: impl IntoIterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>) -> Result<Self, #path::error::Error>
+            fn de<'a>(src: &mut #path::Buf<impl Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<Self, #path::error::Error>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
-                let mut src = src.into_iter();
-
                 #(
                     const #tag_consts: #repr = #tags;
                 )*
 
-                let tag = <#repr as #path::SerializeIter>::deserialize_iter(&mut src)?;
+                let tag = <#repr as #path::SerializeIter>::de(src)?;
 
                 match tag {
                     #(

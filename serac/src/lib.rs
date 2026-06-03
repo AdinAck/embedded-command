@@ -2,9 +2,11 @@
 
 #![no_std]
 
+mod buf;
 pub mod encoding;
 pub mod medium;
 
+pub use buf::Buf;
 pub use encoding::Encoding;
 use encoding::vanilla::Vanilla;
 pub use macros::{SerializeBuf, impl_serialize_buf_alias as serialize_buf};
@@ -61,12 +63,35 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
         dst: impl IntoIterator<Item = &'a mut E::Word>,
     ) -> Result<usize, error::EndOfInput>
     where
-        E::Word: 'a;
+        E::Word: 'a,
+    {
+        let mut buf = buf::Buf::from(dst);
+        self.ser(&mut buf)?;
+        Ok(buf.used)
+    }
 
     /// Deserialize the implementer type from a serialization medium via an iterator.
     fn deserialize_iter<'a>(
         src: impl IntoIterator<Item = &'a E::Word>,
     ) -> Result<Self, error::Error>
+    where
+        E::Word: 'a,
+    {
+        let mut buf = Buf::from(src);
+        // for now, the number of bytes used is discarded
+        Self::de(&mut buf)
+    }
+
+    /// Inner serialization method, wrapped by [`serialize_iter`](SerializeIter::serialize_iter).
+    fn ser<'a>(
+        &self,
+        dst: &mut Buf<impl Iterator<Item = &'a mut E::Word>>,
+    ) -> Result<(), error::EndOfInput>
+    where
+        E::Word: 'a;
+
+    /// Inner deserialization function, wrapped by [`deserialize_iter`](SerializeIter::deserialize_iter).
+    fn de<'a>(src: &mut Buf<impl Iterator<Item = &'a E::Word>>) -> Result<Self, error::Error>
     where
         E::Word: 'a;
 }
