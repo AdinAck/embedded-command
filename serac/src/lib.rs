@@ -5,12 +5,14 @@
 mod buf;
 pub mod encoding;
 pub mod medium;
+mod transport;
 
 pub use buf::Buf;
 pub use encoding::Encoding;
 use encoding::vanilla::Vanilla;
 pub use macros::{SerializeBuf, impl_serialize_buf_alias as serialize_buf};
 pub use medium::Medium;
+pub use transport::Transport;
 
 pub mod error {
     use crate as serac;
