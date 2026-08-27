@@ -1,3 +1,6 @@
+#[cfg(feature = "heapless")]
+pub mod heapless;
+
 use core::{marker::PhantomData, mem::MaybeUninit};
 
 use fill_array::fill;
