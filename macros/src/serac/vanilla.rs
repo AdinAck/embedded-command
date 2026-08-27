@@ -117,14 +117,14 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn ser<'a>(&self, dst: &mut #path::Buf<impl Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<(), #path::error::EndOfInput>
+            fn ser<'a>(&self, dst: &mut #path::Buf<impl ::core::iter::Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> ::core::result::Result<(), #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
                 #ser_body
             }
 
-            fn de<'a>(src: &mut #path::Buf<impl Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<Self, #path::error::Error>
+            fn de<'a>(src: &mut #path::Buf<impl ::core::iter::Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> ::core::result::Result<Self, #path::error::Error>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
@@ -273,7 +273,7 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
 
     quote! {
         impl #impl_generics #path::SerializeIter for #implementer #ty_generics #where_clause {
-            fn ser<'a>(&self, dst: &mut #path::Buf<impl Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<(), #path::error::EndOfInput>
+            fn ser<'a>(&self, dst: &mut #path::Buf<impl ::core::iter::Iterator<Item = &'a mut <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> ::core::result::Result<(), #path::error::EndOfInput>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {
@@ -288,7 +288,7 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
                 }
             }
 
-            fn de<'a>(src: &mut #path::Buf<impl Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> Result<Self, #path::error::Error>
+            fn de<'a>(src: &mut #path::Buf<impl ::core::iter::Iterator<Item = &'a <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word>>) -> ::core::result::Result<Self, #path::error::Error>
             where
                 <#path::encoding::vanilla::Vanilla as #path::encoding::Encoding>::Word: 'a,
             {

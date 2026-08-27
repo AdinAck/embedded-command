@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "embedded-command-macros"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -150,9 +150,9 @@ dependencies = [
 
 [[package]]
 name = "embedded-command-macros"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc804f076b630d9b27791aa07bb00ddac7cc12b7d08a2bb7eadac7ae1ce21e2"
+checksum = "4a755c0327f3bf0940a7293ff6c216331b3da898d43d5dfd87114048658ec3fa"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -337,12 +337,12 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serac"
-version = "0.4.9"
+version = "0.4.10"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "defmt",
- "embedded-command-macros 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded-command-macros 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fill-array",
  "heapless",
  "itertools",
