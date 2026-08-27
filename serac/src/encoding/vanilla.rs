@@ -1,7 +1,8 @@
+mod core;
 #[cfg(feature = "heapless")]
 pub mod heapless;
 
-use core::{marker::PhantomData, mem::MaybeUninit};
+use ::core::mem::MaybeUninit;
 
 use fill_array::fill;
 
@@ -212,42 +213,6 @@ impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e));
 impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f));
 impl_tuple!((A, a), (B, b), (C, c), (D, d), (E, e), (F, f), (G, g));
 
-impl<T: SerializeIter> SerializeIter for Option<T> {
-    fn ser<'a>(
-        &self,
-        dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
-    ) -> Result<(), error::EndOfInput>
-    where
-        <Vanilla as Encoding>::Word: 'a,
-    {
-        match self {
-            Some(t) => {
-                true.ser(dst)?;
-                t.ser(dst)
-            }
-            None => false.ser(dst),
-        }
-    }
-
-    fn de<'a>(
-        src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
-    ) -> Result<Self, error::Error>
-    where
-        <Vanilla as Encoding>::Word: 'a,
-    {
-        let discriminant = bool::de(src)?;
-
-        Ok(match discriminant {
-            true => Some(T::de(src)?),
-            false => None,
-        })
-    }
-}
-
-unsafe impl<T: Size> Size for Option<T> {
-    const SIZE: usize = 1 + T::SIZE;
-}
-
 // unit impl (no-op)
 
 impl SerializeIter for () {
@@ -276,35 +241,6 @@ unsafe impl Size for () {
 }
 
 unsafe impl SerializeBuf<0> for () {}
-
-// PhantomData impl (no-op)
-
-impl<T> SerializeIter for PhantomData<T> {
-    fn ser<'a>(
-        &self,
-        _dst: &mut Buf<impl Iterator<Item = &'a mut <Vanilla as Encoding>::Word>>,
-    ) -> Result<(), error::EndOfInput>
-    where
-        <Vanilla as Encoding>::Word: 'a,
-    {
-        Ok(())
-    }
-
-    fn de<'a>(
-        _src: &mut Buf<impl Iterator<Item = &'a <Vanilla as Encoding>::Word>>,
-    ) -> Result<Self, error::Error>
-    where
-        <Vanilla as Encoding>::Word: 'a,
-    {
-        Ok(PhantomData)
-    }
-}
-
-unsafe impl<T> Size for PhantomData<T> {
-    const SIZE: usize = 0;
-}
-
-unsafe impl<T> SerializeBuf<0> for PhantomData<T> {}
 
 #[cfg(test)]
 mod tests {
@@ -361,24 +297,6 @@ mod tests {
                     _ => panic!(),
                 }
             }
-        }
-    }
-
-    mod builtins {
-        use crate as serac;
-
-        use serac::{SerializeBuf as _, Size as _, buf};
-
-        #[test]
-        fn option() {
-            #[serac::serialize_buf]
-            type Test = Option<u32>;
-
-            let mut buf = buf!(Test);
-
-            let used = Some(0xdeadbeef).serialize_buf(&mut buf);
-
-            assert_eq!(used, u32::SIZE + 1);
         }
     }
 
