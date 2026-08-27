@@ -12,14 +12,14 @@ CRATES=("embedded-command-macros" "serac" "dispatch-bundle")
 for TARGET in "${TARGETS[@]}"; do
     rustup target add "$TARGET"
     for CRATE in "${CRATES[@]}"; do
-        cargo build -p "$CRATE" --target "$TARGET"
+        cargo build -p "$CRATE" --all-features --target "$TARGET"
     done
 done
 
 # tests
 
 for CRATE in "${CRATES[@]}"; do
-    cargo test -p "$CRATE"
+    cargo test -p "$CRATE" --all-features
 done
 
 # miri
