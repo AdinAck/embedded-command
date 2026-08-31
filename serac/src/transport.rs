@@ -127,6 +127,7 @@ mod tests {
 
         let readback = Foo::deserialize_buf(&buf).unwrap();
 
-        assert_eq!(foo, readback);
+        assert_eq!(foo, *readback);
+        assert_eq!(buf.len(), readback.used());
     }
 }

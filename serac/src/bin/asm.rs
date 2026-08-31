@@ -16,7 +16,7 @@ struct Foo {
 
 #[inline(never)]
 fn deserialize<const N: usize>(buf: &[u8; N]) -> Foo {
-    unsafe { Foo::deserialize_iter(buf).unwrap_unchecked() }
+    unsafe { Foo::deserialize_iter(buf).unwrap_unchecked() }.take()
 }
 
 #[inline(never)]

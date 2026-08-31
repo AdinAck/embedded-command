@@ -79,7 +79,8 @@ mod tests {
             let readback = VecU8::<u8, 255>::deserialize_iter(&buf)
                 .expect("vec should deserialize successfully");
 
-            itertools::assert_equal(v, readback);
+            assert_eq!(7, readback.used());
+            itertools::assert_equal(v, readback.take());
         }
 
         #[test]
@@ -93,7 +94,8 @@ mod tests {
             let readback = VecU8::<u8, 6>::deserialize_iter(&buf)
                 .expect("vec should deserialize successfully");
 
-            itertools::assert_equal(v, readback);
+            assert_eq!(7, readback.used());
+            itertools::assert_equal(v, readback.take());
         }
 
         #[test]
