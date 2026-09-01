@@ -258,7 +258,7 @@ mod tests {
                 test_num.serialize_iter(&mut buf).unwrap();
                 let read_num = <$TYPE>::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_num, read_num);
+                assert_eq!(test_num, *read_num);
             };
         }
 
@@ -285,7 +285,7 @@ mod tests {
             for val in [false, true] {
                 val.serialize_iter(&mut buf).unwrap();
 
-                assert_eq!(val, bool::deserialize_iter(&buf).unwrap());
+                assert_eq!(val, *bool::deserialize_iter(&buf).unwrap());
             }
 
             // check invalid values
@@ -347,7 +347,8 @@ mod tests {
 
                 let read_foo = Foo::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(3, read_foo.used());
 
                 let mut buf = buf!(Bar);
                 assert_eq!(3, buf.len());
@@ -357,7 +358,8 @@ mod tests {
 
                 let read_bar = Bar::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_bar, read_bar);
+                assert_eq!(test_bar, *read_bar);
+                assert_eq!(3, read_bar.used());
 
                 let mut buf = buf!(Baz);
                 assert_eq!(66, buf.len());
@@ -370,7 +372,8 @@ mod tests {
 
                 let read_baz = Baz::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_baz, read_baz);
+                assert_eq!(test_baz, *read_baz);
+                assert_eq!(66, read_baz.used());
             }
 
             #[test]
@@ -383,7 +386,8 @@ mod tests {
 
                 let read_foo = Foo::deserialize_buf(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(3, read_foo.used());
 
                 let mut buf = buf!(Bar);
                 assert_eq!(3, buf.len());
@@ -393,7 +397,8 @@ mod tests {
 
                 let read_bar = Bar::deserialize_buf(&buf).unwrap();
 
-                assert_eq!(test_bar, read_bar);
+                assert_eq!(test_bar, *read_bar);
+                assert_eq!(3, read_bar.used());
 
                 let mut buf = buf!(Baz);
                 assert_eq!(66, buf.len());
@@ -406,7 +411,8 @@ mod tests {
 
                 let read_baz = Baz::deserialize_buf(&buf).unwrap();
 
-                assert_eq!(test_baz, read_baz);
+                assert_eq!(test_baz, *read_baz);
+                assert_eq!(66, read_baz.used());
             }
         }
 
@@ -436,14 +442,16 @@ mod tests {
 
                 let read_foo = Foo::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(4, read_foo.used());
 
                 let test_foo = Foo::A;
                 assert_eq!(1, test_foo.serialize_iter(&mut buf).unwrap());
 
                 let read_foo = Foo::deserialize_iter(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(1, read_foo.used());
             }
 
             #[test]
@@ -456,14 +464,16 @@ mod tests {
 
                 let read_foo = Foo::deserialize_buf(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(4, read_foo.used());
 
                 let test_foo = Foo::A;
                 assert_eq!(1, test_foo.serialize_buf(&mut buf));
 
                 let read_foo = Foo::deserialize_buf(&buf).unwrap();
 
-                assert_eq!(test_foo, read_foo);
+                assert_eq!(test_foo, *read_foo);
+                assert_eq!(1, read_foo.used());
             }
         }
 
@@ -505,7 +515,8 @@ mod tests {
 
             let read_bar = SerializeIter::deserialize_iter(&buf).unwrap();
 
-            assert_eq!(test_bar, read_bar); // comparison provides type inference for deserialization!
+            assert_eq!(test_bar, *read_bar); // comparison provides type inference for deserialization!
+            assert_eq!(6, read_bar.used());
 
             let mut buf = buf!(ConcreteFoo);
 
@@ -515,7 +526,8 @@ mod tests {
 
             let read_foo = SerializeBuf::deserialize_buf(&buf).unwrap();
 
-            assert_eq!(test_foo, read_foo); // comparison provides type inference for deserialization!
+            assert_eq!(test_foo, *read_foo); // comparison provides type inference for deserialization!
+            assert_eq!(4, read_foo.used());
         }
     }
 }

@@ -8,10 +8,13 @@ pub mod medium;
 mod transport;
 
 pub use buf::Buf;
+use derive_more::{Deref, DerefMut};
 pub use encoding::Encoding;
 use encoding::vanilla::Vanilla;
+pub use error::Error;
 pub use macros::{SerializeBuf, impl_serialize_buf_alias as serialize_buf};
 pub use medium::Medium;
+use ters::ters;
 pub use transport::Transport;
 
 pub mod error {
@@ -75,13 +78,16 @@ pub trait SerializeIter<E: Encoding = Vanilla>: Sized {
     /// Deserialize the implementer type from a serialization medium via an iterator.
     fn deserialize_iter<'a>(
         src: impl IntoIterator<Item = &'a E::Word>,
-    ) -> Result<Self, error::Error>
+    ) -> Result<Deserialized<Self>, error::Error>
     where
         E::Word: 'a,
     {
         let mut buf = Buf::from(src);
         // for now, the number of bytes used is discarded
-        Self::de(&mut buf)
+        Ok(Deserialized {
+            value: Self::de(&mut buf)?,
+            used: buf.used,
+        })
     }
 
     /// Inner serialization method, wrapped by [`serialize_iter`](SerializeIter::serialize_iter).
@@ -121,7 +127,7 @@ pub unsafe trait SerializeBuf<const N: usize, E: Encoding = Vanilla>:
         unsafe { SerializeIter::serialize_iter(self, buf).unwrap_unchecked() }
     }
 
-    fn deserialize_buf<'a>(src: &'a E::Serialized<N>) -> Result<Self, error::Invalid>
+    fn deserialize_buf<'a>(src: &'a E::Serialized<N>) -> Result<Deserialized<Self>, error::Invalid>
     where
         &'a E::Serialized<N>: IntoIterator<Item = &'a E::Word>,
         E::Word: 'a,
@@ -145,6 +151,27 @@ pub unsafe trait Size<E = Vanilla> {
     /// The size of the implementor when serialized, according to the encoding
     /// scheme.
     const SIZE: usize;
+}
+
+/// A successfully deserialized value. Use [`Deref`](::core::ops::Deref), [`DerefMut`](::core::ops::DerefMut), or
+/// [`take`](Deserialized::take) to access the inner `T`. Use [`used`](Deserialized::used) to view the number of words
+/// used to deserialize the `T`.
+#[ters]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deref, DerefMut)]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+pub struct Deserialized<T> {
+    #[deref]
+    #[deref_mut]
+    value: T,
+    #[get(deref)]
+    used: usize,
+}
+
+impl<T> Deserialized<T> {
+    /// Take the deserialized value from the container.
+    pub fn take(self) -> T {
+        self.value
+    }
 }
 
 /// Create an empty buffer for the provided type serialized with the provided
