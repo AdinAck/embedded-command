@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "embedded-command-macros"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -367,7 +367,7 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "derive_more",
- "embedded-command-macros 0.5.1",
+ "embedded-command-macros 0.5.2",
  "fill-array",
  "heapless",
  "itertools",
