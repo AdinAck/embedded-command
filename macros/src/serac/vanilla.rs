@@ -134,7 +134,7 @@ fn serialize_struct(s: DataStruct, info: &BodyInfo) -> TokenStream2 {
     }
 }
 
-fn size_of_struct(s: DataStruct, info: &BodyInfo) -> (TokenStream2, HashSet<Type>) {
+fn size_of_struct(s: DataStruct, info: &BodyInfo) -> (TokenStream2, Vec<Type>) {
     let types: Vec<_> = s.fields.iter().map(|field| field.ty.clone()).collect();
     let path = &info.path;
 
@@ -144,8 +144,16 @@ fn size_of_struct(s: DataStruct, info: &BodyInfo) -> (TokenStream2, HashSet<Type
         } else {
             quote! { #( <#types as #path::Size>::SIZE )+* }
         },
-        HashSet::from_iter(types),
+        first_occurrences(types),
     )
+}
+
+/// Keeps the first occurrence of each type, in order, so the generated `where` bounds are the same
+/// on every run.
+fn first_occurrences(mut types: Vec<Type>) -> Vec<Type> {
+    let mut seen = HashSet::new();
+    types.retain(|ty| seen.insert(ty.clone()));
+    types
 }
 
 fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
@@ -309,8 +317,8 @@ fn serialize_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> TokenStream2 {
     }
 }
 
-fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> (TokenStream2, HashSet<Type>) {
-    let mut types = HashSet::new();
+fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> (TokenStream2, Vec<Type>) {
+    let mut types = Vec::new();
 
     let path = &info.path;
     let sizes: Vec<_> = e
@@ -345,7 +353,7 @@ fn size_of_enum(e: DataEnum, info: &BodyInfo, repr: Type) -> (TokenStream2, Hash
 
             max + <#repr as #path::Size>::SIZE
         }},
-        types,
+        first_occurrences(types),
     )
 }
 
@@ -404,4 +412,79 @@ pub fn impl_size(item: TokenStream) -> TokenStream {
         }
     }
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::{Data, DeriveInput, Type, parse_quote};
+
+    use super::{size_of_enum, size_of_struct};
+    use crate::serac::BodyInfo;
+
+    #[test]
+    fn struct_bounds_follow_field_order() {
+        let item: DeriveInput = parse_quote! {
+            struct S {
+                a: A,
+                b: B,
+                c: C,
+                d: D,
+                e: E,
+                f: F,
+                g: G,
+                h: H,
+                a_again: A,
+            }
+        };
+        let info = info(&item);
+        let Data::Struct(s) = item.data else {
+            unreachable!("expected item to be a struct")
+        };
+
+        let (.., types) = size_of_struct(s, &info);
+
+        assert_eq!(types, a_to_h());
+    }
+
+    #[test]
+    fn enum_bounds_follow_variant_order() {
+        let item: DeriveInput = parse_quote! {
+            #[repr(u8)]
+            enum E {
+                V0(A, B),
+                V1,
+                V2 { c: C, d: D },
+                V3(E, F, G, H, A),
+            }
+        };
+        let info = info(&item);
+        let Data::Enum(e) = item.data else {
+            unreachable!("expected item to be an enum")
+        };
+
+        let (.., types) = size_of_enum(e, &info, parse_quote! { u8 });
+
+        assert_eq!(types, a_to_h());
+    }
+
+    fn info(item: &DeriveInput) -> BodyInfo {
+        BodyInfo {
+            ident: item.ident.clone(),
+            generics: item.generics.clone(),
+            path: parse_quote! { serac },
+        }
+    }
+
+    fn a_to_h() -> Vec<Type> {
+        vec![
+            parse_quote! { A },
+            parse_quote! { B },
+            parse_quote! { C },
+            parse_quote! { D },
+            parse_quote! { E },
+            parse_quote! { F },
+            parse_quote! { G },
+            parse_quote! { H },
+        ]
+    }
 }
